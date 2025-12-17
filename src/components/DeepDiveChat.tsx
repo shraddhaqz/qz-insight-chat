@@ -72,7 +72,17 @@ export function DeepDiveChat({ isOpen, onClose, initialQuery, initialInsight }: 
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading || !conversationId) return;
+    // Guard against missing conversationId or empty input
+    if (!input.trim() || isLoading) return;
+    
+    if (!conversationId) {
+      toast({
+        title: 'Session error',
+        description: 'No active conversation. Please close and try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -81,6 +91,7 @@ export function DeepDiveChat({ isOpen, onClose, initialQuery, initialInsight }: 
       timestamp: new Date(),
     };
 
+    const messageContent = input.trim();
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
@@ -89,7 +100,7 @@ export function DeepDiveChat({ isOpen, onClose, initialQuery, initialInsight }: 
       const response = await deepDiveQuery(
         userId,
         sessionId,
-        input.trim(),
+        messageContent,
         conversationId
       );
       
@@ -115,7 +126,7 @@ export function DeepDiveChat({ isOpen, onClose, initialQuery, initialInsight }: 
         description: message,
         variant: 'destructive',
       });
-      // Remove the user message on error
+      // Remove the user message on error (don't mutate state on failure)
       setMessages(prev => prev.filter(m => m.id !== userMessage.id));
     } finally {
       setIsLoading(false);
