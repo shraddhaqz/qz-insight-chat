@@ -51,6 +51,8 @@ export function HomeScreen() {
 
     try {
       const result = await queryApi(userId, sessionId, query);
+      console.log("QUERY API RESULT:", result);
+
       
       // Extract assistant message from conversation
       const assistantMessage = result.conversation.find(m => m.role === 'assistant');
@@ -58,18 +60,20 @@ export function HomeScreen() {
       
       // Transform documents to match expected format
       const documents: ApiDocument[] = result.relevant_docs.map((doc, idx) => ({
-        id: doc.id || String(idx),
-        file_name: doc.file_name,
-        description: doc.description,
-        url: doc.url,
+        id: String(idx),
+        file_name: doc.FILE_NAME,
+        description: doc.DOC_SUMMARY || doc.DESCRIPTION,
+        url: doc.LINKS,
       }));
 
+
       setResponse({
-        reasoning: result.reasoning,
+        reasoning: result.reasoning?.explanation || '',
         insight,
-        confidence: result.confidence || 85,
+        confidence: 85,
         documents,
       });
+
       
       // Save last Q&A for deep dive
       setLastQA(query, insight);
