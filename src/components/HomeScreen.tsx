@@ -94,7 +94,15 @@ export function HomeScreen() {
   };
 
   const handleDeepDiveOpen = async () => {
-    if (!response) return;
+    // Guard against missing data
+    if (!response || !currentQuery.trim() || !response.insight.trim()) {
+      toast({
+        title: 'Cannot start deep dive',
+        description: 'Missing question or insight data.',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     try {
       const { conversation_id } = await deepDiveInit(
