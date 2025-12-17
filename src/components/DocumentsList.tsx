@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { ChevronRight, FileText, ExternalLink } from 'lucide-react';
-import type { Document } from '@/lib/mockApi';
+import type { Document } from '@/lib/api';
 
 interface DocumentsListProps {
   documents: Document[];
@@ -28,6 +28,8 @@ export function DocumentsList({ documents }: DocumentsListProps) {
             <motion.a
               key={doc.id}
               href={doc.url}
+              target="_blank"
+              rel="noopener noreferrer"
               className="group flex items-start gap-4 p-4 rounded-xl bg-secondary/30 hover:bg-secondary/60 transition-all duration-200 cursor-pointer"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -36,9 +38,9 @@ export function DocumentsList({ documents }: DocumentsListProps) {
             >
               <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-foreground group-hover:text-primary transition-colors duration-200 mb-1 truncate">
-                  {doc.title}
+                  {doc.file_name}
                 </h4>
-                <p className="text-sm text-muted-foreground line-clamp-2">{doc.snippet}</p>
+                <p className="text-sm text-muted-foreground line-clamp-2">{doc.description}</p>
               </div>
 
               <motion.div

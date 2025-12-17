@@ -1,8 +1,16 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, User, Bot, Sparkles } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
-import type { ChatMessage } from '@/lib/mockApi';
-import { sendChatMessage } from '@/lib/mockApi';
+import { deepDiveQuery } from '@/lib/api';
+import { useAppState } from '@/context/AppContext';
+import { useToast } from '@/hooks/use-toast';
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
 
 interface DeepDiveChatProps {
   isOpen: boolean;
@@ -12,6 +20,9 @@ interface DeepDiveChatProps {
 }
 
 export function DeepDiveChat({ isOpen, onClose, initialQuery, initialInsight }: DeepDiveChatProps) {
+  const { userId, sessionId, conversationId } = useAppState();
+  const { toast } = useToast();
+  
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -19,8 +30,9 @@ export function DeepDiveChat({ isOpen, onClose, initialQuery, initialInsight }: 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Initialize with previous Q&A when opening
   useEffect(() => {
-    if (isOpen && messages.length === 0) {
+    if (isOpen && messages.length === 0 && initialQuery && initialInsight) {
       setMessages([
         {
           id: '1',
@@ -38,6 +50,13 @@ export function DeepDiveChat({ isOpen, onClose, initialQuery, initialInsight }: 
     }
   }, [isOpen, initialQuery, initialInsight, messages.length]);
 
+  // Clear messages when closed
+  useEffect(() => {
+    if (!isOpen) {
+      setMessages([]);
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus();
@@ -53,7 +72,7 @@ export function DeepDiveChat({ isOpen, onClose, initialQuery, initialInsight }: 
   }, [messages]);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !conversationId) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -67,16 +86,37 @@ export function DeepDiveChat({ isOpen, onClose, initialQuery, initialInsight }: 
     setIsLoading(true);
 
     try {
-      const response = await sendChatMessage(messages, input.trim());
-      const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch {
-      console.error('Failed to send message');
+      const response = await deepDiveQuery(
+        userId,
+        sessionId,
+        input.trim(),
+        conversationId
+      );
+      
+      // Add all new messages from conversation
+      const newMessages: ChatMessage[] = response.conversation
+        .filter(msg => msg.role === 'assistant')
+        .map((msg, idx) => ({
+          id: `${Date.now()}-${idx}`,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(),
+        }));
+      
+      // Get the last assistant message
+      const lastAssistantMsg = newMessages[newMessages.length - 1];
+      if (lastAssistantMsg) {
+        setMessages(prev => [...prev, lastAssistantMsg]);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to send message.';
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
+      });
+      // Remove the user message on error
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id));
     } finally {
       setIsLoading(false);
     }
